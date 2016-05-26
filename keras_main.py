@@ -1,5 +1,6 @@
 import numpy as np
 from skimage import io, color, exposure, transform
+from sklearn.cross_validation import train_test_split
 import os
 import glob
 import h5py
@@ -35,41 +36,36 @@ def preprocess_img(img):
 
     return img
 
+
 def get_class(img_path):
     return int(img_path.split('/')[-2])
 
-def preprocess_all_images(root_dir):
+
+def preprocess_all_images(root_dir, is_labeled=False):
     all_img_paths = glob.glob(os.path.join(root_dir, '*/*.ppm'))
     imgs = []
-    labels = []
+    if is_labeled:
+        labels = []
 
     for img_path in all_img_paths:
         try:
             img = preprocess_img(io.imread(img_path))
-            label = get_class(img_path)
             imgs.append(img)
-            labels.append(label)
+            if is_labeled: 
+                label = get_class(img_path)
+                labels.append(label)
+            
             if len(imgs)%100 == 0: print("{}/{}".format(len(imgs), len(all_img_paths)))
         except (IOError, OSError):
             print('missed', img_path)
             pass
 
     imgs = np.array(imgs, dtype='float32')
-    labels = np.eye(NUM_CLASSES, dtype='uint8')[labels]
-
-    return imgs, labels
-
-
-def make_h5(dir):
-    with h5py.File('X_train.h5','w') as hf:
-        imgs, labels = preprocess_all_images(os.path.join(dir,'train'))
-        hf.create_dataset('imgs', data=imgs)
-        hf.create_dataset('labels', data=labels)
-
-    with h5py.File('X_val.h5','w') as hf:
-        imgs, labels = preprocess_all_images(os.path.join(dir, 'val'))
-        hf.create_dataset('imgs', data=imgs)
-        hf.create_dataset('labels', data=labels)
+    if is_labeled:
+        labels = np.eye(NUM_CLASSES, dtype='uint8')[labels]
+        return imgs, labels
+    else:
+        return imgs
 
 
 def cnn_model():
@@ -106,7 +102,7 @@ def cnn_model():
     return model
 
 
-def train(X_train, Y_train, X_val, Y_val, batch_size=32, nb_epoch=30, data_augmentation=False):
+def train(X, Y, batch_size=32, nb_epoch=30, data_augmentation=False):
     model = cnn_model()
     batch_size = 32
     nb_epoch = 30
@@ -118,18 +114,18 @@ def train(X_train, Y_train, X_val, Y_val, batch_size=32, nb_epoch=30, data_augme
               optimizer=sgd,
               metrics=['accuracy'])
 
-    
-
 
     if not data_augmentation:
         print('Not using data augmentation.')
-        model.fit(X_train, Y_train,
+        model.fit(X, Y,
                   batch_size=batch_size,
                   nb_epoch=nb_epoch,
-                  validation_data=(X_val, Y_val),
+                  validation_split=0.33,
                   shuffle=True)
     else:
         print('Using real-time data augmentation.')
+        X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.33, random_state=42)
+
         datagen = ImageDataGenerator(featurewise_center=False, 
                                     featurewise_std_normalization=False, 
                                     width_shift_range=0.1,
@@ -154,13 +150,15 @@ def train(X_train, Y_train, X_val, Y_val, batch_size=32, nb_epoch=30, data_augme
 
 if __name__ == '__main__':
     try:
-        X_train, Y_train = h5py.File('X_train.h5')['imgs'][:], h5py.File('X_train.h5')['labels'][:]
-        X_val, Y_val = h5py.File('X_val.h5')['imgs'][:], h5py.File('X_val.h5')['labels'][:]
-        X_test, Y_test = h5py.File('X_test.h5')['imgs'][:], h5py.File('X_test.h5')['labels'][:]
+        X, Y = h5py.File('X.h5')['imgs'][:], h5py.File('X.h5')['labels'][:]
     except (OSError, IOError):
-        make_h5('GTSRB/Final_Training/Images/')
+        with h5py.File('X.h5','w') as hf:
+            imgs, labels = preprocess_all_images('GTSRB/Final_Training/Images/', is_labeled=True)
+            hf.create_dataset('imgs', data=imgs)
+            hf.create_dataset('labels', data=labels)
+        
         with h5py.File('X_test.h5','w') as hf:
-            imgs, labels = preprocess_all_images(os.path.join('GTSRB/Final_Testing/Images/'))
+            imgs, labels = preprocess_all_images(os.path.join('GTSRB/Final_Testing/Images/'), is_labeled=False)
             hf.create_dataset('imgs', data=imgs)
             hf.create_dataset('labels', data=labels)
 
@@ -169,7 +167,4 @@ if __name__ == '__main__':
         model = model_from_json(open('my_model_architecture.json').read())
         model.load_weights('my_model_weights.h5')
     except:
-        model = train(X_train, Y_train, X_val, Y_val, nb_epoch=15)
-
-    #Testing
-    model.evaluate(X_test, Y_test)
+        model = train(X, Y, nb_epoch=15)
