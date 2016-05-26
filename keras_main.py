@@ -5,7 +5,7 @@ import glob
 import h5py
 
 NUM_CLASSES = 43
-IMGs_SIZE = 48
+IMG_SIZE = 48
 
 def preprocess_img(img):
     # Histogram normalization in y
@@ -48,7 +48,7 @@ def preprocess_all_images(root_dir):
             pass
 
     imgs = np.array(imgs, dtype='float32')
-    labels = np.eye(NUM_CLASSES)[labels]
+    labels = np.eye(NUM_CLASSES, dtype='uint8')[labels]
 
     return imgs, labels
 
