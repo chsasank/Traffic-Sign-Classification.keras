@@ -42,10 +42,13 @@ def get_class(img_path):
 
 
 def preprocess_all_images(root_dir, is_labeled=False):
-    all_img_paths = glob.glob(os.path.join(root_dir, '*/*.ppm'))
+    
     imgs = []
     if is_labeled:
+        all_img_paths = glob.glob(os.path.join(root_dir, '*/*.ppm'))
         labels = []
+    else:
+        all_img_paths = glob.glob(os.path.join(root_dir, '*.ppm'))
 
     for img_path in all_img_paths:
         try:
