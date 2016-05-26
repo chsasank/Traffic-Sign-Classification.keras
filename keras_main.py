@@ -2,9 +2,10 @@ import numpy as np
 from skimage import io, color, exposure, transform
 import os
 import glob
+import h5py
 
 NUM_CLASSES = 43
-IMG_SIZE = 48
+IMGs_SIZE = 48
 
 def preprocess_img(img):
     # Histogram normalization in y
@@ -46,7 +47,20 @@ def preprocess_all_images(root_dir):
             print('missed', img_path)
             pass
 
-    imgs = np.array(imgs)
+    imgs = np.array(imgs, dtype='float32')
     labels = np.eye(NUM_CLASSES)[labels]
 
     return imgs, labels
+
+
+with h5py.File('X_train.h5','w') as hf:
+    imgs, labels = preprocess_all_images('GTSRB/Final_Training/Images/train')
+    hf.create_dataset('imgs', data=imgs)
+    hf.create_dataset('labels', data=labels)
+
+with h5py.File('X_val.h5','w') as hf:
+    imgs, labels = preprocess_all_images('GTSRB/Final_Training/Images/val')
+    hf.create_dataset('imgs', data=imgs)
+    hf.create_dataset('labels', data=labels)
+
+
