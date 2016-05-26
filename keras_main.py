@@ -109,8 +109,8 @@ def cnn_model():
 
 if __name__ == '__main__':
     try:
-        X_train, Y_train = h5py.File('X_train.h5')['imgs'], h5py.File('X_train.h5')['labels']
-        X_val, Y_val = h5py.File('X_val.h5')['imgs'], h5py.File('X_val.h5')['labels']
+        X_train, Y_train = h5py.File('X_train.h5')['imgs'][:], h5py.File('X_train.h5')['labels'][:]
+        X_val, Y_val = h5py.File('X_val.h5')['imgs'][:], h5py.File('X_val.h5')['labels'][:]
     except (OSError, IOError):
         make_h5('GTSRB/Final_Training/Images/')
 
