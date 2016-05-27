@@ -153,18 +153,15 @@ def train(X, Y, batch_size=32, nb_epoch=30, data_augmentation=False):
 
 if __name__ == '__main__':
     try:
-        X, Y = h5py.File('X.h5')['imgs'][:], h5py.File('X.h5')['labels'][:]
-    except (OSError, IOError):
+        with h5py.File('X.h5') as hf:
+            X, Y = hf['imgs'][:], hf['labels'][:]
+
+    except (OSError, IOError, KeyError):
         with h5py.File('X.h5','w') as hf:
             imgs, labels = preprocess_all_images('GTSRB/Final_Training/Images/', is_labeled=True)
             hf.create_dataset('imgs', data=imgs)
             hf.create_dataset('labels', data=labels)
         
-        with h5py.File('X_test.h5','w') as hf:
-            imgs, labels = preprocess_all_images(os.path.join('GTSRB/Final_Testing/Images/'), is_labeled=False)
-            hf.create_dataset('imgs', data=imgs)
-            hf.create_dataset('labels', data=labels)
-
 
     try:
         model = model_from_json(open('my_model_architecture.json').read())
